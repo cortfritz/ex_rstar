@@ -1,0 +1,18 @@
+[package]
+name = "rstar_nif"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "rstar_nif"
+crate-type = ["cdylib"]
+
+[dependencies]
+rustler = "0.36"
+rstar = "0.12"
+
+[features]
+default = []
+nif_version_2_15 = ["rustler/nif_version_2_15"]
+nif_version_2_16 = ["rustler/nif_version_2_16"]
+nif_version_2_17 = ["rustler/nif_version_2_17"]
