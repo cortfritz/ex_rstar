@@ -40,6 +40,7 @@ defmodule ExRstar.MixProject do
         "lib",
         "native/rstar_nif/src",
         "native/rstar_nif/Cargo.toml",
+        "priv/native",
         "checksum-*.exs",
         "mix.exs",
         "README.md",
