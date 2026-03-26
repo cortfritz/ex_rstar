@@ -36,6 +36,7 @@ impl rstar::PointDistance for Point2D {
 
 struct RTreeResource(Mutex<RTree<Point2D>>);
 
+#[allow(non_local_definitions, unused_must_use)]
 fn load(env: Env, _info: Term) -> bool {
     rustler::resource!(RTreeResource, env);
     true
