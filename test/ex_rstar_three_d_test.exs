@@ -55,6 +55,18 @@ defmodule ExRstarThreeDTest do
     assert [] = ExRstar.ThreeD.nearest_neighbors(tree, 0.0, 0.0, 0.0, 5)
   end
 
+  test "nearest_neighbors count exceeds tree size returns all points" do
+    tree =
+      ExRstar.ThreeD.bulk_load([
+        {1.0, 1.0, 1.0, :a},
+        {2.0, 2.0, 2.0, :b},
+        {3.0, 3.0, 3.0, :c}
+      ])
+
+    results = ExRstar.ThreeD.nearest_neighbors(tree, 0.0, 0.0, 0.0, 10)
+    assert length(results) == 3
+  end
+
   test "bulk_load" do
     points = for i <- 1..100, do: {i / 1.0, i / 1.0, i / 1.0, "point_#{i}"}
     tree = ExRstar.ThreeD.bulk_load(points)
@@ -161,6 +173,30 @@ defmodule ExRstarThreeDTest do
     assert {:ok, {1.0, 2.0, 3.0, ^data}} = ExRstar.ThreeD.nearest_neighbor(tree, 1.0, 2.0, 3.0)
   end
 
+  test "stores and retrieves nested struct-like data" do
+    tree = ExRstar.ThreeD.new()
+    data = %{address: %{street: "123 Main", city: "Portland"}, id: 42}
+    ExRstar.ThreeD.insert(tree, 3.0, 4.0, 5.0, data)
+
+    assert {:ok, {3.0, 4.0, 5.0, ^data}} = ExRstar.ThreeD.nearest_neighbor(tree, 3.0, 4.0, 5.0)
+  end
+
+  test "stores and retrieves large binary data" do
+    tree = ExRstar.ThreeD.new()
+    data = :crypto.strong_rand_bytes(4096)
+    ExRstar.ThreeD.insert(tree, 1.0, 1.0, 1.0, data)
+
+    assert {:ok, {1.0, 1.0, 1.0, ^data}} = ExRstar.ThreeD.nearest_neighbor(tree, 1.0, 1.0, 1.0)
+  end
+
+  test "stores and retrieves tuple data" do
+    tree = ExRstar.ThreeD.new()
+    data = {:point_meta, 42, "label"}
+    ExRstar.ThreeD.insert(tree, 2.0, 3.0, 4.0, data)
+
+    assert {:ok, {2.0, 3.0, 4.0, ^data}} = ExRstar.ThreeD.nearest_neighbor(tree, 2.0, 3.0, 4.0)
+  end
+
   test "integer coordinate coercion" do
     tree = ExRstar.ThreeD.new()
     ExRstar.ThreeD.insert(tree, 3, 4, 5, :int_point)
@@ -190,6 +226,34 @@ defmodule ExRstarThreeDTest do
 
     assert {:ok, {5.0, 5.0, 5.0, :pos}} =
              ExRstar.ThreeD.nearest_neighbor(tree, 6.0, 6.0, 6.0)
+  end
+
+  test "locate_in_envelope with negative coordinates" do
+    tree =
+      ExRstar.ThreeD.bulk_load([
+        {-3.0, -3.0, -3.0, :a},
+        {-1.0, -1.0, -1.0, :b},
+        {1.0, 1.0, 1.0, :c}
+      ])
+
+    results =
+      ExRstar.ThreeD.locate_in_envelope(tree, {-4.0, -4.0, -4.0}, {-0.5, -0.5, -0.5})
+
+    data = Enum.map(results, fn {_, _, _, d} -> d end) |> Enum.sort()
+    assert data == [:a, :b]
+  end
+
+  test "locate_within_distance with negative origin" do
+    tree =
+      ExRstar.ThreeD.bulk_load([
+        {-1.0, -1.0, -1.0, :near},
+        {10.0, 10.0, 10.0, :far}
+      ])
+
+    results = ExRstar.ThreeD.locate_within_distance(tree, -1.0, -1.0, -1.0, 1.0)
+    assert length(results) == 1
+    [{_, _, _, data}] = results
+    assert data == :near
   end
 
   test "ECEF-scale coordinates work" do
