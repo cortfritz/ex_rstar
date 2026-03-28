@@ -6,6 +6,8 @@ defmodule ExRstar do
   Points are `{x, y}` tuples, and each point can carry an associated term
   that is serialized via `:erlang.term_to_binary/1`.
 
+  For 3D points (ECEF, point clouds, etc.), see `ExRstar.ThreeD`.
+
   The tree is held as an opaque NIF resource reference -- it lives in Rust
   memory and is garbage-collected when no longer referenced from the BEAM.
   """

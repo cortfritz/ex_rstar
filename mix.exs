@@ -4,7 +4,7 @@ defmodule ExRstar.MixProject do
   def project do
     [
       app: :ex_rstar,
-      version: "0.1.3",
+      version: "0.2.0",
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -29,8 +29,8 @@ defmodule ExRstar.MixProject do
 
   defp description do
     "Elixir NIF wrapper around the Rust rstar R*-tree spatial index. " <>
-      "Provides efficient 2D nearest-neighbor, envelope, and radius queries " <>
-      "with optional associated data per point."
+      "Provides efficient 2D and 3D nearest-neighbor, envelope, and radius queries " <>
+      "with optional associated data per point. 3D support enables ECEF and point cloud use cases."
   end
 
   defp package do

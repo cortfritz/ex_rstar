@@ -27,4 +27,28 @@ defmodule ExRstar.Native do
   def locate_within_distance(_tree, _x, _y, _max_dist_sq), do: :erlang.nif_error(:nif_not_loaded)
   def locate_at_point(_tree, _x, _y), do: :erlang.nif_error(:nif_not_loaded)
   def drain_within_distance(_tree, _x, _y, _max_dist_sq), do: :erlang.nif_error(:nif_not_loaded)
+
+  # --- 3D ---
+
+  def new_tree_3d(), do: :erlang.nif_error(:nif_not_loaded)
+  def bulk_load_3d(_points), do: :erlang.nif_error(:nif_not_loaded)
+  def insert_3d(_tree, _x, _y, _z, _data), do: :erlang.nif_error(:nif_not_loaded)
+  def remove_3d(_tree, _x, _y, _z), do: :erlang.nif_error(:nif_not_loaded)
+  def size_3d(_tree), do: :erlang.nif_error(:nif_not_loaded)
+  def nearest_neighbor_3d(_tree, _x, _y, _z), do: :erlang.nif_error(:nif_not_loaded)
+  def nearest_neighbors_3d(_tree, _x, _y, _z, _count), do: :erlang.nif_error(:nif_not_loaded)
+
+  def locate_in_envelope_3d(_tree, _min_x, _min_y, _min_z, _max_x, _max_y, _max_z),
+    do: :erlang.nif_error(:nif_not_loaded)
+
+  def locate_in_envelope_intersecting_3d(_tree, _min_x, _min_y, _min_z, _max_x, _max_y, _max_z),
+    do: :erlang.nif_error(:nif_not_loaded)
+
+  def locate_within_distance_3d(_tree, _x, _y, _z, _max_dist_sq),
+    do: :erlang.nif_error(:nif_not_loaded)
+
+  def locate_at_point_3d(_tree, _x, _y, _z), do: :erlang.nif_error(:nif_not_loaded)
+
+  def drain_within_distance_3d(_tree, _x, _y, _z, _max_dist_sq),
+    do: :erlang.nif_error(:nif_not_loaded)
 end
