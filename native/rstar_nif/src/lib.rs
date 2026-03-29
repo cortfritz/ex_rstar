@@ -74,6 +74,10 @@ fn load(env: Env, _info: Term) -> bool {
     true
 }
 
+// ==========================================================================
+// 2D
+// ==========================================================================
+
 // --- Construction ---
 
 #[rustler::nif]
@@ -126,6 +130,12 @@ fn size(tree: ResourceArc<RTreeResource>) -> usize {
 }
 
 #[rustler::nif]
+fn contains(tree: ResourceArc<RTreeResource>, x: f64, y: f64) -> bool {
+    let t = tree.0.lock().unwrap();
+    t.locate_at_point(&[x, y]).is_some()
+}
+
+#[rustler::nif]
 fn nearest_neighbor(tree: ResourceArc<RTreeResource>, x: f64, y: f64) -> NifResult<(Atom, (f64, f64, Vec<u8>))> {
     let t = tree.0.lock().unwrap();
     match t.nearest_neighbor(&[x, y]) {
@@ -145,6 +155,32 @@ fn nearest_neighbors(
     t.nearest_neighbor_iter_with_distance_2(&[x, y])
         .take(count)
         .map(|(p, dist2)| (p.x, p.y, p.data.clone().unwrap_or_default(), dist2))
+        .collect()
+}
+
+#[rustler::nif]
+fn pop_nearest_neighbor(tree: ResourceArc<RTreeResource>, x: f64, y: f64) -> NifResult<(Atom, (f64, f64, Vec<u8>))> {
+    let mut t = tree.0.lock().unwrap();
+    let nearest = t.nearest_neighbor(&[x, y]).cloned();
+    match nearest {
+        Some(p) => {
+            let result = (p.x, p.y, p.data.clone().unwrap_or_default());
+            t.remove(&p);
+            Ok((atoms::ok(), result))
+        }
+        None => Err(rustler::Error::Term(Box::new(atoms::not_found()))),
+    }
+}
+
+#[rustler::nif(schedule = "DirtyCpu")]
+fn locate_all_at_point(
+    tree: ResourceArc<RTreeResource>,
+    x: f64,
+    y: f64,
+) -> Vec<(f64, f64, Vec<u8>)> {
+    let t = tree.0.lock().unwrap();
+    t.locate_all_at_point(&[x, y])
+        .map(|p| (p.x, p.y, p.data.clone().unwrap_or_default()))
         .collect()
 }
 
@@ -217,6 +253,56 @@ fn drain_within_distance(
         .collect()
 }
 
+#[rustler::nif(schedule = "DirtyCpu")]
+fn drain_in_envelope(
+    tree: ResourceArc<RTreeResource>,
+    min_x: f64,
+    min_y: f64,
+    max_x: f64,
+    max_y: f64,
+) -> Vec<(f64, f64, Vec<u8>)> {
+    let mut t = tree.0.lock().unwrap();
+    let envelope = AABB::from_corners([min_x, min_y], [max_x, max_y]);
+    t.drain_in_envelope(envelope)
+        .map(|p| (p.x, p.y, p.data.clone().unwrap_or_default()))
+        .collect()
+}
+
+#[rustler::nif(schedule = "DirtyCpu")]
+fn drain_in_envelope_intersecting(
+    tree: ResourceArc<RTreeResource>,
+    min_x: f64,
+    min_y: f64,
+    max_x: f64,
+    max_y: f64,
+) -> Vec<(f64, f64, Vec<u8>)> {
+    let mut t = tree.0.lock().unwrap();
+    let envelope = AABB::from_corners([min_x, min_y], [max_x, max_y]);
+    t.drain_in_envelope_intersecting(envelope)
+        .map(|p| (p.x, p.y, p.data.clone().unwrap_or_default()))
+        .collect()
+}
+
+#[rustler::nif(schedule = "DirtyCpu")]
+fn to_list(tree: ResourceArc<RTreeResource>) -> Vec<(f64, f64, Vec<u8>)> {
+    let t = tree.0.lock().unwrap();
+    t.iter()
+        .map(|p| (p.x, p.y, p.data.clone().unwrap_or_default()))
+        .collect()
+}
+
+#[rustler::nif(schedule = "DirtyCpu")]
+fn clear(tree: ResourceArc<RTreeResource>) -> usize {
+    let mut t = tree.0.lock().unwrap();
+    let count = t.size();
+    *t = RTree::new();
+    count
+}
+
+// ==========================================================================
+// 3D
+// ==========================================================================
+
 // --- 3D Construction ---
 
 #[rustler::nif]
@@ -269,6 +355,12 @@ fn size_3d(tree: ResourceArc<RTree3DResource>) -> usize {
 }
 
 #[rustler::nif]
+fn contains_3d(tree: ResourceArc<RTree3DResource>, x: f64, y: f64, z: f64) -> bool {
+    let t = tree.0.lock().unwrap();
+    t.locate_at_point(&[x, y, z]).is_some()
+}
+
+#[rustler::nif]
 fn nearest_neighbor_3d(tree: ResourceArc<RTree3DResource>, x: f64, y: f64, z: f64) -> NifResult<(Atom, (f64, f64, f64, Vec<u8>))> {
     let t = tree.0.lock().unwrap();
     match t.nearest_neighbor(&[x, y, z]) {
@@ -289,6 +381,33 @@ fn nearest_neighbors_3d(
     t.nearest_neighbor_iter_with_distance_2(&[x, y, z])
         .take(count)
         .map(|(p, dist2)| (p.x, p.y, p.z, p.data.clone().unwrap_or_default(), dist2))
+        .collect()
+}
+
+#[rustler::nif]
+fn pop_nearest_neighbor_3d(tree: ResourceArc<RTree3DResource>, x: f64, y: f64, z: f64) -> NifResult<(Atom, (f64, f64, f64, Vec<u8>))> {
+    let mut t = tree.0.lock().unwrap();
+    let nearest = t.nearest_neighbor(&[x, y, z]).cloned();
+    match nearest {
+        Some(p) => {
+            let result = (p.x, p.y, p.z, p.data.clone().unwrap_or_default());
+            t.remove(&p);
+            Ok((atoms::ok(), result))
+        }
+        None => Err(rustler::Error::Term(Box::new(atoms::not_found()))),
+    }
+}
+
+#[rustler::nif(schedule = "DirtyCpu")]
+fn locate_all_at_point_3d(
+    tree: ResourceArc<RTree3DResource>,
+    x: f64,
+    y: f64,
+    z: f64,
+) -> Vec<(f64, f64, f64, Vec<u8>)> {
+    let t = tree.0.lock().unwrap();
+    t.locate_all_at_point(&[x, y, z])
+        .map(|p| (p.x, p.y, p.z, p.data.clone().unwrap_or_default()))
         .collect()
 }
 
@@ -366,6 +485,56 @@ fn drain_within_distance_3d(
     t.drain_within_distance([x, y, z], max_distance_squared)
         .map(|p| (p.x, p.y, p.z, p.data.clone().unwrap_or_default()))
         .collect()
+}
+
+#[rustler::nif(schedule = "DirtyCpu")]
+fn drain_in_envelope_3d(
+    tree: ResourceArc<RTree3DResource>,
+    min_x: f64,
+    min_y: f64,
+    min_z: f64,
+    max_x: f64,
+    max_y: f64,
+    max_z: f64,
+) -> Vec<(f64, f64, f64, Vec<u8>)> {
+    let mut t = tree.0.lock().unwrap();
+    let envelope = AABB::from_corners([min_x, min_y, min_z], [max_x, max_y, max_z]);
+    t.drain_in_envelope(envelope)
+        .map(|p| (p.x, p.y, p.z, p.data.clone().unwrap_or_default()))
+        .collect()
+}
+
+#[rustler::nif(schedule = "DirtyCpu")]
+fn drain_in_envelope_intersecting_3d(
+    tree: ResourceArc<RTree3DResource>,
+    min_x: f64,
+    min_y: f64,
+    min_z: f64,
+    max_x: f64,
+    max_y: f64,
+    max_z: f64,
+) -> Vec<(f64, f64, f64, Vec<u8>)> {
+    let mut t = tree.0.lock().unwrap();
+    let envelope = AABB::from_corners([min_x, min_y, min_z], [max_x, max_y, max_z]);
+    t.drain_in_envelope_intersecting(envelope)
+        .map(|p| (p.x, p.y, p.z, p.data.clone().unwrap_or_default()))
+        .collect()
+}
+
+#[rustler::nif(schedule = "DirtyCpu")]
+fn to_list_3d(tree: ResourceArc<RTree3DResource>) -> Vec<(f64, f64, f64, Vec<u8>)> {
+    let t = tree.0.lock().unwrap();
+    t.iter()
+        .map(|p| (p.x, p.y, p.z, p.data.clone().unwrap_or_default()))
+        .collect()
+}
+
+#[rustler::nif(schedule = "DirtyCpu")]
+fn clear_3d(tree: ResourceArc<RTree3DResource>) -> usize {
+    let mut t = tree.0.lock().unwrap();
+    let count = t.size();
+    *t = RTree::new();
+    count
 }
 
 rustler::init!("Elixir.ExRstar.Native", load = load);

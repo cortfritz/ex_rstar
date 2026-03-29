@@ -67,6 +67,13 @@ defmodule ExRstar do
   end
 
   @doc """
+  Returns `true` if a point exists at the given coordinates.
+  """
+  def contains?(tree, x, y) do
+    Native.contains(tree, x / 1, y / 1)
+  end
+
+  @doc """
   Finds the nearest neighbor to the query point.
   Returns `{:ok, {x, y, data}}` or `{:error, :not_found}`.
   """
@@ -85,6 +92,32 @@ defmodule ExRstar do
   def nearest_neighbors(tree, x, y, count) do
     Native.nearest_neighbors(tree, x / 1, y / 1, count)
     |> Enum.map(fn {px, py, raw, dist2} -> {px, py, decode_data(raw), dist2} end)
+  end
+
+  @doc """
+  Removes and returns the nearest neighbor to the query point.
+  Returns `{:ok, {x, y, data}}` or `{:error, :not_found}`.
+
+  Useful for queue-like consumption patterns (e.g., dispatching to the
+  closest available resource).
+  """
+  def pop_nearest_neighbor(tree, x, y) do
+    case Native.pop_nearest_neighbor(tree, x / 1, y / 1) do
+      {:ok, {px, py, raw}} -> {:ok, {px, py, decode_data(raw)}}
+    end
+  rescue
+    ErlangError -> {:error, :not_found}
+  end
+
+  @doc """
+  Returns ALL points at the exact given coordinates.
+
+  Unlike `locate_at_point/3` which returns only one, this returns all
+  overlapping points. Useful when multiple items share coordinates.
+  """
+  def locate_all_at_point(tree, x, y) do
+    Native.locate_all_at_point(tree, x / 1, y / 1)
+    |> decode_points()
   end
 
   @doc """
@@ -133,8 +166,38 @@ defmodule ExRstar do
     |> decode_points()
   end
 
+  @doc """
+  Removes and returns all points fully contained within the given bounding box.
+  """
+  def drain_in_envelope(tree, {min_x, min_y}, {max_x, max_y}) do
+    Native.drain_in_envelope(tree, min_x / 1, min_y / 1, max_x / 1, max_y / 1)
+    |> decode_points()
+  end
+
+  @doc """
+  Removes and returns all points whose envelopes intersect the given bounding box.
+  """
+  def drain_in_envelope_intersecting(tree, {min_x, min_y}, {max_x, max_y}) do
+    Native.drain_in_envelope_intersecting(tree, min_x / 1, min_y / 1, max_x / 1, max_y / 1)
+    |> decode_points()
+  end
+
+  @doc """
+  Returns all points in the tree as a list of `{x, y, data}` tuples.
+  """
+  def to_list(tree) do
+    Native.to_list(tree)
+    |> decode_points()
+  end
+
+  @doc """
+  Removes all points from the tree. Returns the number of points removed.
+  """
+  def clear(tree) do
+    Native.clear(tree)
+  end
+
   # --- Private helpers ---
-  # NIF returns Vec<u8> as Elixir list of integers; convert back to binary for decoding
 
   defp decode_data([]), do: nil
 

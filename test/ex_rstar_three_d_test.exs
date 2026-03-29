@@ -1,6 +1,10 @@
 defmodule ExRstarThreeDTest do
   use ExUnit.Case
 
+  # ===========================================================================
+  # Construction & Size
+  # ===========================================================================
+
   test "new tree has size 0" do
     tree = ExRstar.ThreeD.new()
     assert ExRstar.ThreeD.size(tree) == 0
@@ -13,6 +17,28 @@ defmodule ExRstarThreeDTest do
     assert ExRstar.ThreeD.size(tree) == 2
   end
 
+  test "bulk_load" do
+    points = for i <- 1..100, do: {i / 1.0, i / 1.0, i / 1.0, "point_#{i}"}
+    tree = ExRstar.ThreeD.bulk_load(points)
+    assert ExRstar.ThreeD.size(tree) == 100
+  end
+
+  test "bulk_load with {x, y, z} tuples (no data)" do
+    points = [{1.0, 2.0, 3.0}, {4.0, 5.0, 6.0}, {7.0, 8.0, 9.0}]
+    tree = ExRstar.ThreeD.bulk_load(points)
+    assert ExRstar.ThreeD.size(tree) == 3
+    assert {:ok, {1.0, 2.0, 3.0, nil}} = ExRstar.ThreeD.nearest_neighbor(tree, 1.0, 2.0, 3.0)
+  end
+
+  test "bulk_load empty list" do
+    tree = ExRstar.ThreeD.bulk_load([])
+    assert ExRstar.ThreeD.size(tree) == 0
+  end
+
+  # ===========================================================================
+  # Insert / Remove
+  # ===========================================================================
+
   test "insert with data and nearest_neighbor" do
     tree = ExRstar.ThreeD.new()
     ExRstar.ThreeD.insert(tree, +0.0, +0.0, +0.0, :origin)
@@ -21,6 +47,56 @@ defmodule ExRstarThreeDTest do
     assert {:ok, {+0.0, +0.0, +0.0, :origin}} =
              ExRstar.ThreeD.nearest_neighbor(tree, 1.0, 1.0, 1.0)
   end
+
+  test "insert without data stores nil" do
+    tree = ExRstar.ThreeD.new()
+    ExRstar.ThreeD.insert(tree, 5.0, 5.0, 5.0)
+    assert {:ok, {5.0, 5.0, 5.0, nil}} = ExRstar.ThreeD.nearest_neighbor(tree, 5.0, 5.0, 5.0)
+  end
+
+  test "remove" do
+    tree = ExRstar.ThreeD.new()
+    ExRstar.ThreeD.insert(tree, 1.0, 2.0, 3.0, :a)
+    assert ExRstar.ThreeD.size(tree) == 1
+
+    assert {:ok, true} = ExRstar.ThreeD.remove(tree, 1.0, 2.0, 3.0)
+    assert ExRstar.ThreeD.size(tree) == 0
+
+    assert {:ok, false} = ExRstar.ThreeD.remove(tree, 1.0, 2.0, 3.0)
+  end
+
+  # ===========================================================================
+  # contains?
+  # ===========================================================================
+
+  test "contains? returns true for existing point" do
+    tree = ExRstar.ThreeD.new()
+    ExRstar.ThreeD.insert(tree, 3.0, 4.0, 5.0, :target)
+    assert ExRstar.ThreeD.contains?(tree, 3.0, 4.0, 5.0) == true
+  end
+
+  test "contains? returns false for missing point" do
+    tree = ExRstar.ThreeD.new()
+    ExRstar.ThreeD.insert(tree, 3.0, 4.0, 5.0)
+    assert ExRstar.ThreeD.contains?(tree, 99.0, 99.0, 99.0) == false
+  end
+
+  test "contains? on empty tree" do
+    tree = ExRstar.ThreeD.new()
+    assert ExRstar.ThreeD.contains?(tree, 0.0, 0.0, 0.0) == false
+  end
+
+  test "contains? after remove" do
+    tree = ExRstar.ThreeD.new()
+    ExRstar.ThreeD.insert(tree, 1.0, 2.0, 3.0)
+    assert ExRstar.ThreeD.contains?(tree, 1.0, 2.0, 3.0) == true
+    ExRstar.ThreeD.remove(tree, 1.0, 2.0, 3.0)
+    assert ExRstar.ThreeD.contains?(tree, 1.0, 2.0, 3.0) == false
+  end
+
+  # ===========================================================================
+  # Nearest Neighbor
+  # ===========================================================================
 
   test "nearest_neighbor on empty tree" do
     tree = ExRstar.ThreeD.new()
@@ -41,11 +117,7 @@ defmodule ExRstarThreeDTest do
   end
 
   test "nearest_neighbors returns squared 3D distance" do
-    tree =
-      ExRstar.ThreeD.bulk_load([
-        {3.0, 4.0, 0.0, :a}
-      ])
-
+    tree = ExRstar.ThreeD.bulk_load([{3.0, 4.0, 0.0, :a}])
     [{_, _, _, _, dist2}] = ExRstar.ThreeD.nearest_neighbors(tree, 0.0, 0.0, 0.0, 1)
     assert dist2 == 25.0
   end
@@ -57,29 +129,84 @@ defmodule ExRstarThreeDTest do
 
   test "nearest_neighbors count exceeds tree size returns all points" do
     tree =
-      ExRstar.ThreeD.bulk_load([
-        {1.0, 1.0, 1.0, :a},
-        {2.0, 2.0, 2.0, :b},
-        {3.0, 3.0, 3.0, :c}
-      ])
+      ExRstar.ThreeD.bulk_load([{1.0, 1.0, 1.0, :a}, {2.0, 2.0, 2.0, :b}, {3.0, 3.0, 3.0, :c}])
 
     results = ExRstar.ThreeD.nearest_neighbors(tree, 0.0, 0.0, 0.0, 10)
     assert length(results) == 3
   end
 
-  test "bulk_load" do
-    points = for i <- 1..100, do: {i / 1.0, i / 1.0, i / 1.0, "point_#{i}"}
-    tree = ExRstar.ThreeD.bulk_load(points)
-    assert ExRstar.ThreeD.size(tree) == 100
-  end
+  # ===========================================================================
+  # pop_nearest_neighbor
+  # ===========================================================================
 
-  test "bulk_load with {x, y, z} tuples (no data)" do
-    points = [{1.0, 2.0, 3.0}, {4.0, 5.0, 6.0}, {7.0, 8.0, 9.0}]
-    tree = ExRstar.ThreeD.bulk_load(points)
+  test "pop_nearest_neighbor removes and returns closest point" do
+    tree =
+      ExRstar.ThreeD.bulk_load([
+        {1.0, 1.0, 1.0, :a},
+        {5.0, 5.0, 5.0, :b},
+        {10.0, 10.0, 10.0, :c}
+      ])
+
     assert ExRstar.ThreeD.size(tree) == 3
 
-    assert {:ok, {1.0, 2.0, 3.0, nil}} = ExRstar.ThreeD.nearest_neighbor(tree, 1.0, 2.0, 3.0)
+    assert {:ok, {1.0, 1.0, 1.0, :a}} =
+             ExRstar.ThreeD.pop_nearest_neighbor(tree, 0.0, 0.0, 0.0)
+
+    assert ExRstar.ThreeD.size(tree) == 2
+
+    assert {:ok, {5.0, 5.0, 5.0, :b}} =
+             ExRstar.ThreeD.pop_nearest_neighbor(tree, 0.0, 0.0, 0.0)
+
+    assert ExRstar.ThreeD.size(tree) == 1
   end
+
+  test "pop_nearest_neighbor on empty tree" do
+    tree = ExRstar.ThreeD.new()
+    assert {:error, :not_found} = ExRstar.ThreeD.pop_nearest_neighbor(tree, 0.0, 0.0, 0.0)
+  end
+
+  test "pop_nearest_neighbor drains tree one at a time" do
+    tree = ExRstar.ThreeD.bulk_load(for i <- 1..10, do: {i / 1.0, 0.0, 0.0, i})
+
+    for _ <- 1..10 do
+      assert {:ok, _} = ExRstar.ThreeD.pop_nearest_neighbor(tree, 0.0, 0.0, 0.0)
+    end
+
+    assert ExRstar.ThreeD.size(tree) == 0
+    assert {:error, :not_found} = ExRstar.ThreeD.pop_nearest_neighbor(tree, 0.0, 0.0, 0.0)
+  end
+
+  # ===========================================================================
+  # locate_all_at_point
+  # ===========================================================================
+
+  test "locate_all_at_point returns all overlapping points" do
+    tree = ExRstar.ThreeD.new()
+    ExRstar.ThreeD.insert(tree, 1.0, 2.0, 3.0, :first)
+    ExRstar.ThreeD.insert(tree, 1.0, 2.0, 3.0, :second)
+    ExRstar.ThreeD.insert(tree, 1.0, 2.0, 3.0, :third)
+    ExRstar.ThreeD.insert(tree, 5.0, 5.0, 5.0, :elsewhere)
+
+    results = ExRstar.ThreeD.locate_all_at_point(tree, 1.0, 2.0, 3.0)
+    assert length(results) == 3
+    data = Enum.map(results, fn {_, _, _, d} -> d end) |> Enum.sort()
+    assert data == [:first, :second, :third]
+  end
+
+  test "locate_all_at_point returns empty list for missing point" do
+    tree = ExRstar.ThreeD.new()
+    ExRstar.ThreeD.insert(tree, 1.0, 2.0, 3.0, :a)
+    assert [] = ExRstar.ThreeD.locate_all_at_point(tree, 99.0, 99.0, 99.0)
+  end
+
+  test "locate_all_at_point on empty tree" do
+    tree = ExRstar.ThreeD.new()
+    assert [] = ExRstar.ThreeD.locate_all_at_point(tree, 0.0, 0.0, 0.0)
+  end
+
+  # ===========================================================================
+  # Envelope Queries
+  # ===========================================================================
 
   test "locate_in_envelope" do
     tree =
@@ -113,6 +240,15 @@ defmodule ExRstarThreeDTest do
     refute :outside in data
   end
 
+  test "locate_in_envelope returns empty for non-overlapping region" do
+    tree = ExRstar.ThreeD.bulk_load([{10.0, 10.0, 10.0, :far}])
+    assert [] = ExRstar.ThreeD.locate_in_envelope(tree, {0.0, 0.0, 0.0}, {1.0, 1.0, 1.0})
+  end
+
+  # ===========================================================================
+  # Distance Queries
+  # ===========================================================================
+
   test "locate_within_distance" do
     tree =
       ExRstar.ThreeD.bulk_load([
@@ -121,11 +257,14 @@ defmodule ExRstarThreeDTest do
         {100.0, 100.0, 100.0, :far}
       ])
 
-    # squared distance of 2.0 => radius ~1.41
     results = ExRstar.ThreeD.locate_within_distance(tree, 0.0, 0.0, 0.0, 2.0)
     data = Enum.map(results, fn {_, _, _, d} -> d end) |> Enum.sort()
     assert data == [:close, :mid]
   end
+
+  # ===========================================================================
+  # Point Lookup
+  # ===========================================================================
 
   test "locate_at_point" do
     tree = ExRstar.ThreeD.new()
@@ -135,16 +274,9 @@ defmodule ExRstarThreeDTest do
     assert {:error, :not_found} = ExRstar.ThreeD.locate_at_point(tree, 0.0, 0.0, 0.0)
   end
 
-  test "remove" do
-    tree = ExRstar.ThreeD.new()
-    ExRstar.ThreeD.insert(tree, 1.0, 2.0, 3.0, :a)
-    assert ExRstar.ThreeD.size(tree) == 1
-
-    assert {:ok, true} = ExRstar.ThreeD.remove(tree, 1.0, 2.0, 3.0)
-    assert ExRstar.ThreeD.size(tree) == 0
-
-    assert {:ok, false} = ExRstar.ThreeD.remove(tree, 1.0, 2.0, 3.0)
-  end
+  # ===========================================================================
+  # drain_within_distance
+  # ===========================================================================
 
   test "drain_within_distance removes and returns points" do
     tree =
@@ -159,11 +291,108 @@ defmodule ExRstarThreeDTest do
     assert ExRstar.ThreeD.size(tree) == 1
   end
 
-  test "insert without data stores nil" do
-    tree = ExRstar.ThreeD.new()
-    ExRstar.ThreeD.insert(tree, 5.0, 5.0, 5.0)
-    assert {:ok, {5.0, 5.0, 5.0, nil}} = ExRstar.ThreeD.nearest_neighbor(tree, 5.0, 5.0, 5.0)
+  # ===========================================================================
+  # drain_in_envelope
+  # ===========================================================================
+
+  test "drain_in_envelope removes and returns contained points" do
+    tree =
+      ExRstar.ThreeD.bulk_load([
+        {1.0, 1.0, 1.0, :a},
+        {2.0, 2.0, 2.0, :b},
+        {5.0, 5.0, 5.0, :c},
+        {10.0, 10.0, 10.0, :d}
+      ])
+
+    drained = ExRstar.ThreeD.drain_in_envelope(tree, {0.0, 0.0, 0.0}, {3.0, 3.0, 3.0})
+    assert length(drained) == 2
+    data = Enum.map(drained, fn {_, _, _, d} -> d end) |> Enum.sort()
+    assert data == [:a, :b]
+    assert ExRstar.ThreeD.size(tree) == 2
   end
+
+  test "drain_in_envelope on empty region returns empty" do
+    tree = ExRstar.ThreeD.bulk_load([{10.0, 10.0, 10.0, :far}])
+    assert [] = ExRstar.ThreeD.drain_in_envelope(tree, {0.0, 0.0, 0.0}, {1.0, 1.0, 1.0})
+    assert ExRstar.ThreeD.size(tree) == 1
+  end
+
+  test "drain_in_envelope_intersecting removes boundary points" do
+    tree =
+      ExRstar.ThreeD.bulk_load([
+        {1.0, 1.0, 1.0, :inside},
+        {3.0, 3.0, 3.0, :boundary},
+        {5.0, 5.0, 5.0, :outside}
+      ])
+
+    drained =
+      ExRstar.ThreeD.drain_in_envelope_intersecting(tree, {0.0, 0.0, 0.0}, {3.0, 3.0, 3.0})
+
+    data = Enum.map(drained, fn {_, _, _, d} -> d end) |> Enum.sort()
+    assert :inside in data
+    assert :boundary in data
+    refute :outside in data
+    assert ExRstar.ThreeD.size(tree) == 1
+  end
+
+  # ===========================================================================
+  # to_list
+  # ===========================================================================
+
+  test "to_list returns all points" do
+    tree =
+      ExRstar.ThreeD.bulk_load([{1.0, 2.0, 3.0, :a}, {4.0, 5.0, 6.0, :b}, {7.0, 8.0, 9.0, :c}])
+
+    result = ExRstar.ThreeD.to_list(tree)
+    assert length(result) == 3
+    data = Enum.map(result, fn {_, _, _, d} -> d end) |> Enum.sort()
+    assert data == [:a, :b, :c]
+  end
+
+  test "to_list on empty tree" do
+    tree = ExRstar.ThreeD.new()
+    assert [] = ExRstar.ThreeD.to_list(tree)
+  end
+
+  test "to_list preserves coordinates" do
+    tree = ExRstar.ThreeD.bulk_load([{1_334_998.0, -4_654_050.0, 4_138_297.0, :nyc}])
+    [{x, y, z, :nyc}] = ExRstar.ThreeD.to_list(tree)
+    assert x == 1_334_998.0
+    assert y == -4_654_050.0
+    assert z == 4_138_297.0
+  end
+
+  # ===========================================================================
+  # clear
+  # ===========================================================================
+
+  test "clear removes all points and returns count" do
+    tree = ExRstar.ThreeD.bulk_load(for i <- 1..50, do: {i / 1.0, i / 1.0, i / 1.0, i})
+    assert ExRstar.ThreeD.size(tree) == 50
+
+    removed = ExRstar.ThreeD.clear(tree)
+    assert removed == 50
+    assert ExRstar.ThreeD.size(tree) == 0
+  end
+
+  test "clear on empty tree returns 0" do
+    tree = ExRstar.ThreeD.new()
+    assert ExRstar.ThreeD.clear(tree) == 0
+  end
+
+  test "tree is usable after clear" do
+    tree = ExRstar.ThreeD.bulk_load([{1.0, 2.0, 3.0, :old}])
+    ExRstar.ThreeD.clear(tree)
+    ExRstar.ThreeD.insert(tree, 5.0, 6.0, 7.0, :new)
+    assert ExRstar.ThreeD.size(tree) == 1
+
+    assert {:ok, {5.0, 6.0, 7.0, :new}} =
+             ExRstar.ThreeD.nearest_neighbor(tree, 5.0, 6.0, 7.0)
+  end
+
+  # ===========================================================================
+  # Data encoding edge cases
+  # ===========================================================================
 
   test "stores and retrieves map data" do
     tree = ExRstar.ThreeD.new()
@@ -197,6 +426,10 @@ defmodule ExRstarThreeDTest do
     assert {:ok, {2.0, 3.0, 4.0, ^data}} = ExRstar.ThreeD.nearest_neighbor(tree, 2.0, 3.0, 4.0)
   end
 
+  # ===========================================================================
+  # Integer coercion
+  # ===========================================================================
+
   test "integer coordinate coercion" do
     tree = ExRstar.ThreeD.new()
     ExRstar.ThreeD.insert(tree, 3, 4, 5, :int_point)
@@ -209,9 +442,12 @@ defmodule ExRstarThreeDTest do
     points = [{1, 2, 3, :a}, {4, 5, 6, :b}]
     tree = ExRstar.ThreeD.bulk_load(points)
     assert ExRstar.ThreeD.size(tree) == 2
-
     assert {:ok, {1.0, 2.0, 3.0, :a}} = ExRstar.ThreeD.nearest_neighbor(tree, 1, 2, 3)
   end
+
+  # ===========================================================================
+  # Negative coordinates
+  # ===========================================================================
 
   test "negative coordinates work correctly" do
     tree =
@@ -256,18 +492,51 @@ defmodule ExRstarThreeDTest do
     assert data == :near
   end
 
+  # ===========================================================================
+  # ECEF-scale coordinates
+  # ===========================================================================
+
   test "ECEF-scale coordinates work" do
-    # Approximate ECEF for New York and London (meters)
     nyc = {1_334_998.0, -4_654_050.0, 4_138_297.0, :nyc}
     london = {3_980_608.0, -11_881.0, 4_966_862.0, :london}
     tokyo = {-3_959_786.0, 3_352_557.0, 3_697_508.0, :tokyo}
 
     tree = ExRstar.ThreeD.bulk_load([nyc, london, tokyo])
 
-    # Query near NYC should find NYC
     assert {:ok, {_, _, _, :nyc}} =
              ExRstar.ThreeD.nearest_neighbor(tree, 1_335_000.0, -4_654_000.0, 4_138_300.0)
   end
+
+  test "ECEF nearest neighbor ordering matches brute force" do
+    # 5 cities at ECEF scale
+    cities = [
+      {1_334_998.0, -4_654_050.0, 4_138_297.0, :nyc},
+      {3_980_608.0, -11_881.0, 4_966_862.0, :london},
+      {-3_959_786.0, 3_352_557.0, 3_697_508.0, :tokyo},
+      {-1_797_543.0, 5_178_429.0, -3_430_428.0, :sydney},
+      {-2_694_000.0, -4_297_600.0, -3_854_900.0, :sao_paulo}
+    ]
+
+    tree = ExRstar.ThreeD.bulk_load(cities)
+
+    # Query from a point near London
+    qx = 3_980_000.0
+    qy = -10_000.0
+    qz = 4_966_000.0
+
+    # Brute-force
+    {_, _, _, bf_city} =
+      Enum.min_by(cities, fn {x, y, z, _} ->
+        (x - qx) ** 2 + (y - qy) ** 2 + (z - qz) ** 2
+      end)
+
+    {:ok, {_, _, _, tree_city}} = ExRstar.ThreeD.nearest_neighbor(tree, qx, qy, qz)
+    assert tree_city == bf_city
+  end
+
+  # ===========================================================================
+  # Concurrent access
+  # ===========================================================================
 
   test "concurrent inserts do not crash" do
     tree = ExRstar.ThreeD.new()
@@ -305,6 +574,24 @@ defmodule ExRstarThreeDTest do
     assert ExRstar.ThreeD.size(tree) == 100
   end
 
+  test "concurrent pop_nearest_neighbor safely drains" do
+    tree = ExRstar.ThreeD.bulk_load(for i <- 1..20, do: {i / 1.0, 0.0, 0.0, i})
+
+    tasks =
+      for _ <- 1..20 do
+        Task.async(fn -> ExRstar.ThreeD.pop_nearest_neighbor(tree, 0.0, 0.0, 0.0) end)
+      end
+
+    results = Task.await_many(tasks)
+    ok_count = Enum.count(results, &match?({:ok, _}, &1))
+    assert ok_count == 20
+    assert ExRstar.ThreeD.size(tree) == 0
+  end
+
+  # ===========================================================================
+  # Independence
+  # ===========================================================================
+
   test "2D and 3D trees are independent" do
     tree_2d = ExRstar.new()
     tree_3d = ExRstar.ThreeD.new()
@@ -314,5 +601,33 @@ defmodule ExRstarThreeDTest do
 
     assert ExRstar.size(tree_2d) == 1
     assert ExRstar.ThreeD.size(tree_3d) == 1
+  end
+
+  # ===========================================================================
+  # Stress / larger datasets
+  # ===========================================================================
+
+  test "1000-point 3D KNN correctness" do
+    :rand.seed(:exsss, {4, 5, 6})
+
+    points =
+      for i <- 1..1000 do
+        {(:rand.uniform() - 0.5) * 200, (:rand.uniform() - 0.5) * 200,
+         (:rand.uniform() - 0.5) * 200, i}
+      end
+
+    tree = ExRstar.ThreeD.bulk_load(points)
+    qx = 10.0
+    qy = -20.0
+    qz = 30.0
+
+    # Brute-force nearest
+    {_, _, _, bf_data} =
+      Enum.min_by(points, fn {x, y, z, _} ->
+        (x - qx) ** 2 + (y - qy) ** 2 + (z - qz) ** 2
+      end)
+
+    {:ok, {_, _, _, tree_data}} = ExRstar.ThreeD.nearest_neighbor(tree, qx, qy, qz)
+    assert tree_data == bf_data
   end
 end

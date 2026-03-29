@@ -10,13 +10,18 @@ defmodule ExRstar.Native do
         Mix.env() in [:dev, :test],
     version: version
 
+  # --- 2D ---
+
   def new_tree(), do: :erlang.nif_error(:nif_not_loaded)
   def bulk_load(_points), do: :erlang.nif_error(:nif_not_loaded)
   def insert(_tree, _x, _y, _data), do: :erlang.nif_error(:nif_not_loaded)
   def remove(_tree, _x, _y), do: :erlang.nif_error(:nif_not_loaded)
   def size(_tree), do: :erlang.nif_error(:nif_not_loaded)
+  def contains(_tree, _x, _y), do: :erlang.nif_error(:nif_not_loaded)
   def nearest_neighbor(_tree, _x, _y), do: :erlang.nif_error(:nif_not_loaded)
   def nearest_neighbors(_tree, _x, _y, _count), do: :erlang.nif_error(:nif_not_loaded)
+  def pop_nearest_neighbor(_tree, _x, _y), do: :erlang.nif_error(:nif_not_loaded)
+  def locate_all_at_point(_tree, _x, _y), do: :erlang.nif_error(:nif_not_loaded)
 
   def locate_in_envelope(_tree, _min_x, _min_y, _max_x, _max_y),
     do: :erlang.nif_error(:nif_not_loaded)
@@ -28,6 +33,15 @@ defmodule ExRstar.Native do
   def locate_at_point(_tree, _x, _y), do: :erlang.nif_error(:nif_not_loaded)
   def drain_within_distance(_tree, _x, _y, _max_dist_sq), do: :erlang.nif_error(:nif_not_loaded)
 
+  def drain_in_envelope(_tree, _min_x, _min_y, _max_x, _max_y),
+    do: :erlang.nif_error(:nif_not_loaded)
+
+  def drain_in_envelope_intersecting(_tree, _min_x, _min_y, _max_x, _max_y),
+    do: :erlang.nif_error(:nif_not_loaded)
+
+  def to_list(_tree), do: :erlang.nif_error(:nif_not_loaded)
+  def clear(_tree), do: :erlang.nif_error(:nif_not_loaded)
+
   # --- 3D ---
 
   def new_tree_3d(), do: :erlang.nif_error(:nif_not_loaded)
@@ -35,8 +49,11 @@ defmodule ExRstar.Native do
   def insert_3d(_tree, _x, _y, _z, _data), do: :erlang.nif_error(:nif_not_loaded)
   def remove_3d(_tree, _x, _y, _z), do: :erlang.nif_error(:nif_not_loaded)
   def size_3d(_tree), do: :erlang.nif_error(:nif_not_loaded)
+  def contains_3d(_tree, _x, _y, _z), do: :erlang.nif_error(:nif_not_loaded)
   def nearest_neighbor_3d(_tree, _x, _y, _z), do: :erlang.nif_error(:nif_not_loaded)
   def nearest_neighbors_3d(_tree, _x, _y, _z, _count), do: :erlang.nif_error(:nif_not_loaded)
+  def pop_nearest_neighbor_3d(_tree, _x, _y, _z), do: :erlang.nif_error(:nif_not_loaded)
+  def locate_all_at_point_3d(_tree, _x, _y, _z), do: :erlang.nif_error(:nif_not_loaded)
 
   def locate_in_envelope_3d(_tree, _min_x, _min_y, _min_z, _max_x, _max_y, _max_z),
     do: :erlang.nif_error(:nif_not_loaded)
@@ -51,4 +68,21 @@ defmodule ExRstar.Native do
 
   def drain_within_distance_3d(_tree, _x, _y, _z, _max_dist_sq),
     do: :erlang.nif_error(:nif_not_loaded)
+
+  def drain_in_envelope_3d(_tree, _min_x, _min_y, _min_z, _max_x, _max_y, _max_z),
+    do: :erlang.nif_error(:nif_not_loaded)
+
+  def drain_in_envelope_intersecting_3d(
+        _tree,
+        _min_x,
+        _min_y,
+        _min_z,
+        _max_x,
+        _max_y,
+        _max_z
+      ),
+      do: :erlang.nif_error(:nif_not_loaded)
+
+  def to_list_3d(_tree), do: :erlang.nif_error(:nif_not_loaded)
+  def clear_3d(_tree), do: :erlang.nif_error(:nif_not_loaded)
 end

@@ -71,6 +71,13 @@ defmodule ExRstar.ThreeD do
   end
 
   @doc """
+  Returns `true` if a point exists at the given coordinates.
+  """
+  def contains?(tree, x, y, z) do
+    Native.contains_3d(tree, x / 1, y / 1, z / 1)
+  end
+
+  @doc """
   Finds the nearest neighbor to the query point.
   Returns `{:ok, {x, y, z, data}}` or `{:error, :not_found}`.
   """
@@ -89,6 +96,32 @@ defmodule ExRstar.ThreeD do
   def nearest_neighbors(tree, x, y, z, count) do
     Native.nearest_neighbors_3d(tree, x / 1, y / 1, z / 1, count)
     |> Enum.map(fn {px, py, pz, raw, dist2} -> {px, py, pz, decode_data(raw), dist2} end)
+  end
+
+  @doc """
+  Removes and returns the nearest neighbor to the query point.
+  Returns `{:ok, {x, y, z, data}}` or `{:error, :not_found}`.
+
+  Useful for queue-like consumption patterns (e.g., dispatching to the
+  closest available resource).
+  """
+  def pop_nearest_neighbor(tree, x, y, z) do
+    case Native.pop_nearest_neighbor_3d(tree, x / 1, y / 1, z / 1) do
+      {:ok, {px, py, pz, raw}} -> {:ok, {px, py, pz, decode_data(raw)}}
+    end
+  rescue
+    ErlangError -> {:error, :not_found}
+  end
+
+  @doc """
+  Returns ALL points at the exact given coordinates.
+
+  Unlike `locate_at_point/4` which returns only one, this returns all
+  overlapping points. Useful when multiple items share coordinates.
+  """
+  def locate_all_at_point(tree, x, y, z) do
+    Native.locate_all_at_point_3d(tree, x / 1, y / 1, z / 1)
+    |> decode_points()
   end
 
   @doc """
@@ -151,6 +184,53 @@ defmodule ExRstar.ThreeD do
   def drain_within_distance(tree, x, y, z, max_distance_squared) do
     Native.drain_within_distance_3d(tree, x / 1, y / 1, z / 1, max_distance_squared / 1)
     |> decode_points()
+  end
+
+  @doc """
+  Removes and returns all points fully contained within the given 3D bounding box.
+  """
+  def drain_in_envelope(tree, {min_x, min_y, min_z}, {max_x, max_y, max_z}) do
+    Native.drain_in_envelope_3d(
+      tree,
+      min_x / 1,
+      min_y / 1,
+      min_z / 1,
+      max_x / 1,
+      max_y / 1,
+      max_z / 1
+    )
+    |> decode_points()
+  end
+
+  @doc """
+  Removes and returns all points whose envelopes intersect the given 3D bounding box.
+  """
+  def drain_in_envelope_intersecting(tree, {min_x, min_y, min_z}, {max_x, max_y, max_z}) do
+    Native.drain_in_envelope_intersecting_3d(
+      tree,
+      min_x / 1,
+      min_y / 1,
+      min_z / 1,
+      max_x / 1,
+      max_y / 1,
+      max_z / 1
+    )
+    |> decode_points()
+  end
+
+  @doc """
+  Returns all points in the tree as a list of `{x, y, z, data}` tuples.
+  """
+  def to_list(tree) do
+    Native.to_list_3d(tree)
+    |> decode_points()
+  end
+
+  @doc """
+  Removes all points from the tree. Returns the number of points removed.
+  """
+  def clear(tree) do
+    Native.clear_3d(tree)
   end
 
   # --- Private helpers ---
