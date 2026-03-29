@@ -462,6 +462,114 @@ defmodule ExRstarTest do
   # Stress / larger datasets
   # ===========================================================================
 
+  # ===========================================================================
+  # Edge cases & empty-result scenarios
+  # ===========================================================================
+
+  test "locate_within_distance returns empty when nothing in range" do
+    tree = ExRstar.bulk_load([{100.0, 100.0, :far}])
+    assert [] = ExRstar.locate_within_distance(tree, 0.0, 0.0, 1.0)
+  end
+
+  test "drain_within_distance returns empty when nothing in range" do
+    tree = ExRstar.bulk_load([{100.0, 100.0, :far}])
+    assert [] = ExRstar.drain_within_distance(tree, 0.0, 0.0, 1.0)
+    assert ExRstar.size(tree) == 1
+  end
+
+  test "locate_in_envelope on empty tree" do
+    tree = ExRstar.new()
+    assert [] = ExRstar.locate_in_envelope(tree, {0.0, 0.0}, {10.0, 10.0})
+  end
+
+  test "locate_in_envelope_intersecting on empty tree" do
+    tree = ExRstar.new()
+    assert [] = ExRstar.locate_in_envelope_intersecting(tree, {0.0, 0.0}, {10.0, 10.0})
+  end
+
+  test "locate_at_point on empty tree" do
+    tree = ExRstar.new()
+    assert {:error, :not_found} = ExRstar.locate_at_point(tree, 0.0, 0.0)
+  end
+
+  test "bulk_load single element" do
+    tree = ExRstar.bulk_load([{42.0, 73.0, :solo}])
+    assert ExRstar.size(tree) == 1
+    assert {:ok, {42.0, 73.0, :solo}} = ExRstar.nearest_neighbor(tree, 42.0, 73.0)
+  end
+
+  test "pop_nearest_neighbor returns closest first (order verification)" do
+    tree = ExRstar.bulk_load([{10.0, 0.0, :far}, {1.0, 0.0, :close}, {5.0, 0.0, :mid}])
+
+    {:ok, {_, _, first}} = ExRstar.pop_nearest_neighbor(tree, 0.0, 0.0)
+    {:ok, {_, _, second}} = ExRstar.pop_nearest_neighbor(tree, 0.0, 0.0)
+    {:ok, {_, _, third}} = ExRstar.pop_nearest_neighbor(tree, 0.0, 0.0)
+
+    assert first == :close
+    assert second == :mid
+    assert third == :far
+  end
+
+  test "remove one of multiple overlapping points" do
+    tree = ExRstar.new()
+    ExRstar.insert(tree, 1.0, 2.0, :first)
+    ExRstar.insert(tree, 1.0, 2.0, :second)
+    assert ExRstar.size(tree) == 2
+
+    ExRstar.remove(tree, 1.0, 2.0)
+    assert ExRstar.size(tree) == 1
+    assert ExRstar.contains?(tree, 1.0, 2.0) == true
+  end
+
+  test "drain_in_envelope verifies remaining points are correct" do
+    tree = ExRstar.bulk_load([{1.0, 1.0, :in}, {2.0, 2.0, :in2}, {10.0, 10.0, :out}])
+    ExRstar.drain_in_envelope(tree, {0.0, 0.0}, {5.0, 5.0})
+    remaining = ExRstar.to_list(tree)
+    assert length(remaining) == 1
+    [{_, _, data}] = remaining
+    assert data == :out
+  end
+
+  test "remove preserves data on remaining points" do
+    tree = ExRstar.new()
+    ExRstar.insert(tree, 1.0, 1.0, %{id: 1, name: "first"})
+    ExRstar.insert(tree, 5.0, 5.0, %{id: 2, name: "second"})
+
+    ExRstar.remove(tree, 1.0, 1.0)
+    {:ok, {_, _, data}} = ExRstar.nearest_neighbor(tree, 5.0, 5.0)
+    assert data == %{id: 2, name: "second"}
+  end
+
+  test "to_list -> bulk_load round-trip preserves data" do
+    original = [{1.0, 2.0, :a}, {3.0, 4.0, :b}, {5.0, 6.0, :c}]
+    tree1 = ExRstar.bulk_load(original)
+    exported = ExRstar.to_list(tree1)
+    tree2 = ExRstar.bulk_load(exported)
+
+    assert ExRstar.size(tree2) == 3
+
+    for {x, y, d} <- original do
+      assert {:ok, {^x, ^y, ^d}} = ExRstar.locate_at_point(tree2, x, y)
+    end
+  end
+
+  test "clear then to_list returns empty" do
+    tree = ExRstar.bulk_load([{1.0, 2.0, :a}])
+    ExRstar.clear(tree)
+    assert [] = ExRstar.to_list(tree)
+  end
+
+  test "nearest_neighbors returns correct squared distances for 2D" do
+    tree = ExRstar.bulk_load([{3.0, 0.0, :a}, {0.0, 4.0, :b}])
+    results = ExRstar.nearest_neighbors(tree, 0.0, 0.0, 2)
+    distances = Enum.map(results, fn {_, _, _, d2} -> d2 end)
+    assert distances == [9.0, 16.0]
+  end
+
+  # ===========================================================================
+  # Stress / larger datasets
+  # ===========================================================================
+
   test "1000-point KNN correctness" do
     :rand.seed(:exsss, {1, 2, 3})
 
